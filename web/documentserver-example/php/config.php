@@ -1,8 +1,10 @@
 <?php
+if (!defined('ALLOW_ACCESS'))
+    exit('No direct script access allowed');
 
 $GLOBALS['version'] = "1.2.0";
 
-$GLOBALS['FILE_SIZE_MAX'] = 5242880;
+$GLOBALS['FILE_SIZE_MAX'] = 5242880; // 5MB
 $GLOBALS['STORAGE_PATH'] = "";
 $GLOBALS['ALONE'] = FALSE;
 
@@ -14,19 +16,23 @@ $GLOBALS['DOC_SERV_CONVERT'] = array(".docm", ".doc", ".dotx", ".dotm", ".dot", 
 $GLOBALS['DOC_SERV_TIMEOUT'] = "120000";
 
 
-$GLOBALS['DOC_SERV_SITE_URL'] = "http://documentserver/";
+$GLOBALS['DOC_SERV_SITE_URL'] = "http://localhost/"; //For local development
 
 $GLOBALS['DOC_SERV_CONVERTER_URL'] = "ConvertService.ashx";
 $GLOBALS['DOC_SERV_API_URL'] = "web-apps/apps/api/documents/api.js";
 $GLOBALS['DOC_SERV_PRELOADER_URL'] = "web-apps/apps/api/documents/cache-scripts.html";
 $GLOBALS['DOC_SERV_COMMAND_URL'] = "coauthoring/CommandService.ashx";
 
-$GLOBALS['DOC_SERV_JWT_SECRET'] = "";
+$GLOBALS['DOC_SERV_JWT_SECRET'] = ""; //For sending valid payload to document server if JWT check is enabled on doc server
 $GLOBALS['DOC_SERV_JWT_HEADER'] = "Authorization";
 
 $GLOBALS['DOC_SERV_VERIFY_PEER_OFF'] = TRUE;
 
-$GLOBALS['EXAMPLE_URL'] = "";
+$GLOBALS['PUBLIC_KEY'] = ""; //For jwt verification
+
+//localhost and 127.0.0.1 – These resolve to the container.
+//host.docker.internal – This resolves to the outside host.
+$GLOBALS['EXAMPLE_URL'] = "http://host.docker.internal:8000"; //For host.docker.internal 
 
 $GLOBALS['MOBILE_REGEX'] = "android|avantgo|playbook|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od|ad)|iris|kindle|lge |maemo|midp|mmp|opera m(ob|in)i|palm( os)?|phone|p(ixi|re)\\/|plucker|pocket|psp|symbian|treo|up\\.(browser|link)|vodafone|wap|windows (ce|phone)|xda|xiino";
 
@@ -81,4 +87,7 @@ $GLOBALS['LANGUAGES'] = array(
     'uk' => 'Ukrainian',
     'vi' => 'Vietnamese'
 );
+
+date_default_timezone_set('UTC');
+
 ?>
