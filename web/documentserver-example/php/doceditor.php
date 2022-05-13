@@ -17,6 +17,8 @@
      *
      */
 
+    define("ALLOW_ACCESS",true);
+
     require_once( dirname(__FILE__) . '/config.php' );
     require_once( dirname(__FILE__) . '/common.php' );
     require_once( dirname(__FILE__) . '/functions.php' );
@@ -26,37 +28,16 @@
     $filename;
 
     $user = getUser($_GET["user"]);
+        
+    $filename = basename($_GET["fileID"]);        
 
-    // get the file url and upload it
-    $externalUrl = $_GET["fileUrl"];
-    if (!empty($externalUrl))
-    {
-        $filename = DoUpload($externalUrl);
-    }
-    // if the file url doesn't exist, get file name and file extension
-    else
-    {
-        $filename = basename($_GET["fileID"]);
-    }
-    $createExt = $_GET["fileExt"];
-
-    if (!empty($createExt))
-    {
-        // and get demo file name by the extension
-        $filename = tryGetDefaultByType($createExt, $user);
-
-        // create the demo file url
-        $new_url = "doceditor.php?fileID=" . $filename . "&user=" . $_GET["user"];
-        header('Location: ' . $new_url, true);
-        exit;
-    }
-
-    $fileuri = FileUri($filename, true);
+    $fileuri = FileUri($filename, true);    
     $fileuriUser = realpath($GLOBALS['STORAGE_PATH']) === $GLOBALS['STORAGE_PATH'] ? getDownloadUrl($filename) . "&dmode=emb" : FileUri($filename);
     $docKey = getDocEditorKey($filename);
     $filetype = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-
+    
     $ext = strtolower('.' . pathinfo($filename, PATHINFO_EXTENSION));
+    
     $editorsMode = empty($_GET["action"]) ? "edit" : $_GET["action"];  // get the editors mode
     $canEdit = in_array($ext, $GLOBALS['DOC_SERV_EDITED']);  // check if the file can be edited
     if ((!$canEdit && $editorsMode == "edit" || $editorsMode == "fillForms") && in_array($ext, $GLOBALS['DOC_SERV_FILLFORMS'])) {
@@ -66,22 +47,7 @@
     $submitForm = $editorsMode == "fillForms" && $user->id == "uid-1" && !1;  // check if the Submit form button is displayed or not
     $mode = $canEdit && $editorsMode != "view" ? "edit" : "view";  // define if the editing mode is edit or view
     $type = empty($_GET["type"]) ? "desktop" : $_GET["type"];
-
-    $templatesImageUrl = getTemplateImageUrl($filename); // templates image url in the "From Template" section
-    $createUrl = getCreateUrl($filename, $user->id, $type);
-    $templates = array(
-        array (
-            "image" => "",
-            "title" => "Blank",
-            "url" => $createUrl
-        ),
-        array (
-            "image" => $templatesImageUrl,
-            "title" => "With sample content",
-            "url" => $createUrl . "&sample=true"
-        )
-    );
-
+    
     // specify the document config
     $config = [
         "type" => $type,
@@ -95,53 +61,45 @@
                 "owner" => "Me",
                 "uploaded" => date('d.m.y'),
                 "favorite" => $user->favorite
-            ],
+            ],           
             "permissions" => [  // the permission for the document to be edited and downloaded or not
-                "comment" => $editorsMode != "view" && $editorsMode != "fillForms" && $editorsMode != "embedded" && $editorsMode != "blockcontent",
-                "copy" => !in_array("copy", $user->deniedPermissions),
-                "download" => !in_array("download", $user->deniedPermissions),
-                "edit" => $canEdit && ($editorsMode == "edit" || $editorsMode == "view" || $editorsMode == "filter" || $editorsMode == "blockcontent"),
-                "print" => !in_array("print", $user->deniedPermissions),
-                "fillForms" => $editorsMode != "view" && $editorsMode != "comment" && $editorsMode != "embedded" && $editorsMode != "blockcontent",
-                "modifyFilter" => $editorsMode != "filter",
-                "modifyContentControl" => $editorsMode != "blockcontent",
-                "review" => $canEdit && ($editorsMode == "edit" || $editorsMode == "review"),
-                "reviewGroups" => $user->reviewGroups,
-                "commentGroups" => $user->commentGroups,
-                "userInfoGroups" => $user->userInfoGroups
+                "comment" => false,
+                "copy" => false,
+                "download" => false,
+                "edit" => false,
+                "print" => false,
+                "fillForms" => false,
+                "modifyFilter" => false,
+                "modifyContentControl" => false,
+                "review" => false,                
             ]
         ],
         "editorConfig" => [
             "actionLink" => empty($_GET["actionLink"]) ? null : json_decode($_GET["actionLink"]),
             "mode" => $mode,
             "lang" => empty($_COOKIE["ulang"]) ? "en" : $_COOKIE["ulang"],
-            "callbackUrl" => getCallbackUrl($filename),  // absolute URL to the document storage service
-            "createUrl" => $user->id != "uid-0" ? $createUrl : null,
-            "templates" => $user->templates ? $templates : null,
+            // "callbackUrl" => getCallbackUrl($filename),  // absolute URL to the document storage service            
+            //"templates" => $user->templates ? $templates : null,
             "user" => [  // the user currently viewing or editing the document
                 "id" => $user->id != "uid-0" ? $user->id : null,
                 "name" => $user->name,
                 "group" => $user->group
             ],
-            "embedded" => [  // the parameters for the embedded document type
-                "saveUrl" => $fileuriUser,  // the absolute URL that will allow the document to be saved onto the user personal computer
-                "embedUrl" => $fileuriUser,  // the absolute URL to the document serving as a source file for the document embedded into the web page
-                "shareUrl" => $fileuriUser,  // the absolute URL that will allow other users to share this document
-                "toolbarDocked" => "top",  // the place for the embedded viewer toolbar (top or bottom)
-            ],
+            // "embedded" => [  // the parameters for the embedded document type
+            //     "saveUrl" => $fileuriUser,  // the absolute URL that will allow the document to be saved onto the user personal computer
+            //     "embedUrl" => $fileuriUser,  // the absolute URL to the document serving as a source file for the document embedded into the web page
+            //     "shareUrl" => $fileuriUser,  // the absolute URL that will allow other users to share this document
+            //     "toolbarDocked" => "top",  // the place for the embedded viewer toolbar (top or bottom)
+            // ],
             "customization" => [  // the parameters for the editor interface
-                "about" => true,  // the About section display
-                "comments" => true,
-                "feedback" => true,  // the Feedback & Support menu button display
-                "forcesave" => false,  // adds the request for the forced file saving to the callback handler when saving the document
-                "submitForm" => $submitForm,  // if the Submit form button is displayed or not
-                "goback" => [  // settings for the Open file location menu button and upper right corner button
-                    "url" => serverPath(),  // the absolute URL to the website address which will be opened when clicking the Open file location menu button
-                ]
+                "about" => false,  // the About section display
+                "comments" => false,
+                "feedback" => false,  // the Feedback & Support menu button display
+                //"forcesave" => false,  // adds the request for the forced file saving to the callback handler when saving the document                
             ]
         ]
     ];
-
+    
     // an image for inserting
     $dataInsertImage = [
         "fileType" => "png",
@@ -171,24 +129,6 @@
         $dataMailMergeRecipients["token"] = jwtEncode($dataMailMergeRecipients);  // encode the dataMailMergeRecipients object into the token
     }
 
-    // get demo file name by the extension
-    function tryGetDefaultByType($createExt, $user) {
-        $demoName = ($_GET["sample"] ? "sample." : "new.") . $createExt;
-        $demoPath = "assets" . DIRECTORY_SEPARATOR . ($_GET["sample"] ? "sample" : "new") . DIRECTORY_SEPARATOR;
-        $demoFilename = GetCorrectName($demoName);
-
-        if(!@copy(dirname(__FILE__) . DIRECTORY_SEPARATOR . $demoPath . $demoName, getStoragePath($demoFilename)))
-        {
-            sendlog("Copy file error to ". getStoragePath($demoFilename), "common.log");
-            // Copy error!!!
-        }
-
-        // create demo file meta information
-        createMeta($demoFilename, $user->id, $user->name);
-
-        return $demoFilename;
-    }
-
     // get the callback url
     function getCallbackUrl($fileName) {
         return serverPath(TRUE) . '/'
@@ -196,16 +136,6 @@
                     . "?type=track"
                     . "&fileName=" . urlencode($fileName)
                     . "&userAddress=" . getClientIp();
-    }
-
-    // get url to the created file
-    function getCreateUrl($fileName, $uid, $type) {
-        $ext = trim(getInternalExtension($fileName),'.');
-        return serverPath(false) . '/'
-                . "doceditor.php"
-                . "?fileExt=" . $ext
-                . "&user=" . $uid 
-                . "&type=" . $type;
     }
 
     function getHistoryDownloadUrl($fileName, $version, $file) {
@@ -248,6 +178,7 @@
                 $obj["version"] = $i;
 
                 if ($i == 1) {  // check if the version number is equal to 1
+                    
                     $createdInfo = file_get_contents($histDir . DIRECTORY_SEPARATOR . "createdInfo.json");  // get meta data of this file
                     $json = json_decode($createdInfo, true);  // decode the meta data from the createdInfo.json file
 
@@ -257,7 +188,6 @@
                         "name" => $json["name"]
                     ];
                 }
-
 
                 $fileExe = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
 
@@ -549,11 +479,7 @@
                 // prevent file renaming for anonymous users
                 config.events['onRequestRename'] = onRequestRename;
             <?php endif; ?>
-
-            if (config.editorConfig.createUrl) {
-                config.events.onRequestSaveAs = onRequestSaveAs;
-            };
-
+            
             if ((config.document.fileType === "docxf" || config.document.fileType === "oform")
                 && DocsAPI.DocEditor.version().split(".")[0] < 7) {
                 innerAlert("Please update ONLYOFFICE Docs to version 7.0 to work on fillable forms online.");

@@ -17,6 +17,8 @@
  *
  */
 
+define("ALLOW_ACCESS",true);
+
 /**
  * WebEditor AJAX Process Execution.
  */
@@ -58,15 +60,37 @@ if (isset($_GET["type"]) && !empty($_GET["type"])) {
 
     // set headers that prevent caching in all the browsers
     nocache_headers();
-
+    
     // write the request result to the log file
     sendlog(serialize($_GET), "webedior-ajax.log");
+    
+    if(str_contains($_SERVER['HTTP_HOST'], "host.docker.internal")){
+        // allow any internal access from document server inside docker-compose to us via "host.docker.internal"    
+    }else{
+        // otherwise, check authorization
+        $token = getBearerToken();
+        $reason;
+        if($token){        
+            if(!isValidTokenRS256($token, $GLOBALS["PUBLIC_KEY"], $reason)){
+                $response_array['returnCode'] = 403;
+                $response_array['returnMessage'] = $reason;
+                http_response_code(403);
+                die (json_encode($response_array));
+            }      
+            //todo check scope (our business logic)
+        }else{    
+            $response_array['returnCode'] = 401;
+            $response_array['returnMessage'] = "Unauthorized";
+            http_response_code(401);
+            die (json_encode($response_array));
+        }
+    }
 
     $type = $_GET["type"];
 
     // switch case for type value
     switch($type) {
-        case "upload":
+        case "upload":            
             $response_array = upload();
             $response_array['status'] = isset($response_array['error']) ? 'error' : 'success';
             die (json_encode($response_array));
@@ -74,40 +98,41 @@ if (isset($_GET["type"]) && !empty($_GET["type"])) {
             $response_array = download();
             $response_array['status'] = 'success';
             die (json_encode($response_array));
-        case "history":
-            $response_array = historyDownload();
-            $response_array['status'] = 'success';
-            die (json_encode($response_array));
-        case "convert":
-            $response_array = convert();
-            $response_array['status'] = 'success';
-            die (json_encode($response_array));
-        case "track":
-            $response_array = track();
-            $response_array['status'] = 'success';
-            die (json_encode($response_array));
-        case "delete":
-            $response_array = delete();
-            $response_array['status'] = 'success';
-            die (json_encode($response_array));
-        case "assets":
-            $response_array = assets();
-            $response_array['status'] = 'success';
-            die (json_encode($response_array));
-        case "csv":
-            $response_array = csv();
-            $response_array['status'] = 'success';
-            die (json_encode($response_array));
-        case "files":
-            $response_array = files();
-            die (json_encode($response_array));
-        case "saveas":
-            $response_array = saveas();
-            $response_array['status'] = 'success';
-            die (json_encode($response_array));
-        case "rename":
-            $response_array = renamefile();
-            die (json_encode($response_array));
+        // API temporarily disabled 
+        // case "history":
+        //     $response_array = historyDownload();
+        //     $response_array['status'] = 'success';
+        //     die (json_encode($response_array));
+        // case "convert":
+        //     $response_array = convert();
+        //     $response_array['status'] = 'success';
+        //     die (json_encode($response_array));
+        // case "track":
+        //     $response_array = track();
+        //     $response_array['status'] = 'success';
+        //     die (json_encode($response_array));        
+        // case "delete":
+        //     $response_array = delete();
+        //     $response_array['status'] = 'success';
+        //     die (json_encode($response_array));        
+        // case "assets":
+        //     $response_array = assets();
+        //     $response_array['status'] = 'success';
+        //     die (json_encode($response_array));
+        // case "csv":
+        //     $response_array = csv();
+        //     $response_array['status'] = 'success';
+        //     die (json_encode($response_array));
+        // case "files":
+        //     $response_array = files();
+        //     die (json_encode($response_array));
+        // case "saveas":
+        //     $response_array = saveas();
+        //     $response_array['status'] = 'success';
+        //     die (json_encode($response_array));
+        // case "rename":
+        //     $response_array = renamefile();
+        //     die (json_encode($response_array));
         default:
             $response_array['status'] = 'error';
             $response_array['error'] = '404 Method not found';
@@ -156,7 +181,7 @@ function saveas() {
 function upload() {
     $result; $filename;
 
-    if ($_FILES['files']['error'] > 0) {
+    if ($_FILES['files']['error'] > 0) {           
         $result["error"] = 'Error ' . json_encode($_FILES['files']['error']);
         return $result;
     }
@@ -407,7 +432,7 @@ function download() {
     try {
         $fileName = realpath($GLOBALS['STORAGE_PATH']) === $GLOBALS['STORAGE_PATH'] ? $_GET["fileName"] : basename($_GET["fileName"]);  // get the file name
         $userAddress = $_GET["userAddress"];
-        $isEmbedded = $_GET["&dmode"];
+        $isEmbedded = $_GET["dmode"];
 
         if (isJwtEnabled() && $isEmbedded == null) {
             $jwtHeader = $GLOBALS['DOC_SERV_JWT_HEADER'] == "" ? "Authorization" : $GLOBALS['DOC_SERV_JWT_HEADER'];
