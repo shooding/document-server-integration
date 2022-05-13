@@ -61,6 +61,12 @@ function base64UrlEncode($str) {
     return str_replace("/", "_", str_replace("+", "-", trim(base64_encode($str), "=")));
 }
 
+// encode a string with URL-safe Base64. 
+function safeUrlEncode($input)
+{
+    return str_replace('=', '', strtr(base64_encode($input), '+/', '-_'));
+}
+
 // decode a base64 value into the string
 function base64UrlDecode($payload) {
     $b64 = str_replace("_", "/", str_replace("-", "+", $payload));
@@ -71,6 +77,60 @@ function base64UrlDecode($payload) {
             $b64 = $b64 . "="; break;
     }
     return base64_decode($b64);
+}
+
+function safeUrlDecode($input)
+{
+    $remainder = strlen($input) % 4;
+    if ($remainder) {
+        $pad = 4 - $remainder;
+        $input .= str_repeat('=', $pad);
+    }
+
+    return base64_decode(strtr($input, '-_', '+/'));
+}
+
+/**
+ * Check whether $token is valid signed with RS256
+ */
+function isValidTokenRS256($token, $publicKey, &$reason){
+
+    $split = explode(".", $token);
+    if (count($split) != 3) return false;
+
+    list($headerEncoded, $payloadEncoded, $signatureEncoded) = $split;
+
+    $signature = safeUrlDecode($signatureEncoded);
+
+    $result = openssl_verify($headerEncoded . '.' . $payloadEncoded, $signature, $publicKey, "RSA-SHA256");
+
+    if ($result === -1) {
+        $reason = 'token verified failed';
+        return false;
+    }
+
+    // check payload structure
+    $payloadDecoded = json_decode(base64_decode($payloadEncoded),true);
+
+    if( array_key_exists('exp',$payloadDecoded)&&
+        array_key_exists('aud',$payloadDecoded)&&
+        array_key_exists('sub',$payloadDecoded)&&
+        array_key_exists('iat',$payloadDecoded)&&
+        array_key_exists('iss',$payloadDecoded)&&
+        array_key_exists('token_type',$payloadDecoded)){
+        //valid
+    }else{
+        $reason = 'invalid token structure';
+        return false;
+    }
+
+    //check exp
+    if($payloadDecoded['exp']<time()){        
+        $reason = 'token expired';
+        return false;
+    }
+    
+    return (boolean) $result;    
 }
 
 ?>
